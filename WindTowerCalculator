@@ -1,0 +1,177 @@
+from tkinter import *
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+
+# Material properties
+materials = {
+    "Acetal": {"E": 2.9E9},
+    "Acrylic": {"E": 3.2E9},
+    "Alloy Steel": {"E": 200E9},
+    "Aluminum": {"E": 70E9},
+    "Aluminum Alloy": {"E": 70E9},
+    "Beryllium Copper": {"E": 131E9},
+    "Bone": {"E": 18E9},
+    "Bone Compact": {"E": 18.8E9},
+    "Bone Cortical": {"E": 17.8E9},
+    "Bone Trabecular": {"E": 0.08E9},
+    "Brass": {"E": 100E9},
+    "Bronze": {"E": 110E9},
+    "Carbon Fiber Reinforced Polymer": {"E": 181E9},
+    "Cast Iron": {"E": 100E9},
+    "Ceramics": {"E": 70E9},
+    "Chromium": {"E": 279E9},
+    "Concrete": {"E": 25E9},
+    "Copper": {"E": 128E9},
+    "Copper Alloy": {"E": 100E9},
+    "Cortical Bone": {"E": 17.8E9},
+    "Epoxy": {"E": 3.5E9},
+    "Fiberglass": {"E": 20.7E9},
+    "Glass": {"E": 70E9},
+    "Glass Fiber Reinforced Polymer": {"E": 38E9},
+    "Gold": {"E": 78E9},
+    "Gray Cast Iron": {"E": 110E9},
+    "Inconel": {"E": 205E9},
+    "Invar": {"E": 140E9},
+    "Iron": {"E": 211E9},
+    "Lead": {"E": 16E9},
+    "Magnesium": {"E": 45E9},
+    "Manganese": {"E": 200E9},
+    "Marble": {"E": 30E9},
+    "Mild Steel": {"E": 200E9},
+    "Molybdenum": {"E": 329E9},
+    "Nickel": {"E": 207E9},
+    "Nickel Alloy": {"E": 169E9},
+    "Nylon": {"E": 2.7E9},
+    "Oak": {"E": 12E9},
+    "Phosphor Bronze": {"E": 100E9},
+    "Plaster": {"E": 4E9},
+    "Platinum": {"E": 168E9},
+    "Plywood": {"E": 10E9},
+    "Polyamide (Nylon 6,6)": {"E": 2.4E9},
+    "Polyethylene (HDPE)": {"E": 0.8E9},
+    "Polyethylene Terephthalate (PET)": {"E": 3.5E9},
+    "Polyimide": {"E": 3.2E9},
+    "Polypropylene": {"E": 1.5E9},
+    "Polystyrene (PS)": {"E": 3.5E9},
+    "Polyurethane (PU)": {"E": 1.5E9},
+    "Steel": {"E": 200E9},
+    "Wood": {"E": 11E9},
+    "Titanium": {"E": 116E9}
+    
+}
+
+# Function to calculate stress due to wind speed
+def calculate_stress(diameter, thickness, height, wind_speed, density, material, angle):
+    area = math.pi * diameter * height
+    wind_force = 0.5 * density * wind_speed**2 * area * math.cos(angle)
+    
+    # Compute wind force vector components based on wind direction
+    x_comp = wind_force * math.cos(math.radians(angle))
+    y_comp = 0  # Assume wind blows directly along x-axis
+    z_comp = wind_force * math.sin(math.radians(angle))
+    wind_force_vector = np.array([x_comp, y_comp, z_comp])
+    
+    # Compute moment and stress
+    moment_arm = height / 2
+    moment = wind_force * moment_arm * math.cos(angle)
+    second_moment_area = math.pi/64 * (diameter**4 - (diameter - 2*thickness)**4)
+    stress = moment * height / second_moment_area
+    
+    # Create 3D visualization of wind force vector
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.quiver(0, moment_arm, 0, x_comp, y_comp, z_comp, length=1, normalize=True)
+    ax.set_xlim([-1, 1])
+    ax.set_ylim([0, moment_arm + 1])
+    ax.set_zlim([-1, 1])
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    plt.show()
+    return stress / materials[material]["E"]
+
+# Function to update the stress result when any input changes
+def update_stress():
+    try:
+        diameter = float(diameter_entry.get())
+        thickness = float(thickness_entry.get())
+        height = float(height_entry.get())
+        wind_speed = float(wind_speed_entry.get())
+        density = float(density_entry.get())
+        material = material_variable.get()
+        angle = math.radians(float(angle_entry.get()))
+        stress = calculate_stress(diameter, thickness, height, wind_speed, density, material, angle)
+        
+        # Display stress result to user
+        stress_result.config(text="Stress due to wind speed: {:.2f} Pa".format(stress))
+        
+        # Check if stress is within yield strength of material
+        modulus = materials[material]["E"]
+        yield_strength = modulus / 2.5
+        if stress > yield_strength:
+            stress_status.config(text="Tower may fail under wind load", fg="red")
+            break_status.config(text="Break test: FAIL", fg="red")
+        else:
+            stress_status.config(text="Tower is safe under wind load", fg="green")
+            break_status.config(text="Break test: PASS", fg="green")
+    except ValueError:
+        stress_result.config(text="Please enter valid input.")
+
+# Create GUI
+root = Tk()
+root.title("Wind Tower Stress Calculator")
+
+# Input fields
+Label(root, text="Tower Diameter (m)").grid(row=0, column=0)
+diameter_entry = Entry(root)
+diameter_entry.insert(END, "2.0")
+diameter_entry.grid(row=0, column=1)
+
+Label(root, text="Tower Thickness (m)").grid(row=1, column=0)
+thickness_entry = Entry(root)
+thickness_entry.insert(END, "0.01")
+thickness_entry.grid(row=1, column=1)
+
+Label(root, text="Tower Height (m)").grid(row=2, column=0)
+height_entry = Entry(root)
+height_entry.insert(END, "80.0")
+height_entry.grid(row=2, column=1)
+
+Label(root, text="Wind Speed (m/s)").grid(row=3, column=0)
+wind_speed_entry = Entry(root)
+wind_speed_entry.insert(END, "10.0")
+wind_speed_entry.grid(row=3, column=1)
+
+Label(root, text="Air Density (kg/m^3)").grid(row=4, column=0)
+density_entry = Entry(root)
+density_entry.insert(END, "1.225")
+density_entry.grid(row=4, column=1)
+
+Label(root, text="Angle of Wind from front side of the wind").grid(row=5, column=0)
+angle_entry = Entry(root)
+angle_entry.insert(END, "30")
+angle_entry.grid(row=5, column=1)
+
+material_variable = StringVar(root)
+material_variable.set("Steel")  # Set default material to Steel
+material_dropdown = OptionMenu(root, material_variable, *materials.keys())
+material_dropdown.grid(row=6, column=1)
+
+# Calculate button
+calc_button = Button(root, text="Calculate", command=update_stress)
+calc_button.grid(row=7, column=1)
+
+# Stress result
+stress_result = Label(root, text="Stress due to wind speed: ")
+stress_result.grid(row=8, column=0, columnspan=2)
+
+stress_status = Label(text="")
+stress_status.grid(row=9, column=0, columnspan=2)
+
+break_status = Label(text="")
+break_status.grid(row=10, column=0, columnspan=2)
+
+root.mainloop()
